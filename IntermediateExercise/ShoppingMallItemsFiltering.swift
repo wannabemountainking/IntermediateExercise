@@ -20,12 +20,14 @@ struct Product: Identifiable {
     var discountedPrice: Int {
         guard let discounted = discount else {return price}
         let doubledPrice = Double(price)
-        let doubledDiscountedPrice = doubledPrice * (1.0 - Double(discounted))
+        let doubledDiscountedPrice = doubledPrice * (1.0 - (Double(discounted) / 100))
         return Int(doubledDiscountedPrice)
     }
 }
 
 class ShoppingMallViewModel: ObservableObject {
+    
+    @Published var itemsInCart: [Product] = []
     
     let products: [Product] = [
         Product(name: "iPhone 15", category: "Electronics", price: 1200, inStock: true, discount: 10),
@@ -50,27 +52,38 @@ class ShoppingMallViewModel: ObservableObject {
         Product(name: "초콜릿(1박스)", category: "Food", price: 18, inStock: false, discount: nil)
     ]
     
-    var discountedItemList: [Product] {
-        products
-            .filter { $0.discount != nil }
+//    var discountedItemList: [Product] {
+//        products
+//            .filter { $0.discount != nil }
+//    }
+    
+    var discountedItems: [(discount: Int, name: String)] {
+        products.compactMap { product in
+            guard let discount = product.discount else {return nil}
+            return (discount, product.name)
+        }
     }
     
-    var ElectronicsInStock: [Product] {
+    var electronicsInStock: [Product] {
         products
-            .filter { $0.inStock }
+            .filter { $0.category == "Electronics" && $0.inStock }
     }
     
     var totalPriceInCart: Int {
-        products.map { $0.discountedPrice }.reduce(0, +)
+        itemsInCart.map { $0.discountedPrice }.reduce(0, +)
     }
     
-    var clothingsWithReasonablePrice: [Product] {
+    var clothingsWithReasonablePriceOrder: [Product] {
         Array(
             products
-                .filter { $0.inStock }
+                .filter { $0.inStock && $0.category == "Clothing" }
                 .sorted { $0.discountedPrice <= $1.discountedPrice }
                 .prefix(5)
         )
+    }
+    
+    var finalPrices: [(name: String, original: Int, final: Int)] {
+        products.map { ($0.name, $0.price, $0.discountedPrice) }
     }
 }
 
@@ -78,45 +91,280 @@ class ShoppingMallViewModel: ObservableObject {
 
 struct ShoppingMallItemsFiltering: View {
     @StateObject private var vm: ShoppingMallViewModel = ShoppingMallViewModel()
+    @State private var showTotalList: Bool = true
+    @State private var isCurrentItemInCart: Bool = false
     
     var body: some View {
         
         NavigationStack {
-            TabView {
-                Tab("할인", systemImage: "tag.fill") {
-                    DiscountView(vm: vm)
-                } // 할인 tab
-            } //:TABVIEW
-            .navigationTitle("상품 분석 앱")
-            .navigationBarTitleDisplayMode(.inline)
             
+            if showTotalList {
+                MainView(
+                    isCurrentItemInCart: $isCurrentItemInCart,
+                    showTotalList: $showTotalList,
+                    vm: vm
+                )
+            } else {
+                TabView {
+                    DiscountView(vm: vm)
+                        .tabItem {
+                            Label("할인", systemImage: "megaphone.fill")
+                        }
+                    
+                    StockView(vm: vm)
+                        .tabItem {
+                            Label("재고", systemImage: "shippingbox.fill")
+                        }
+                    
+                    PriceView(vm: vm)
+                        .tabItem {
+                            Label("가격", systemImage: "dollarsign")
+                        }
+                    
+                    TotalPriceView(vm: vm)
+                        .tabItem {
+                            Label("총액", systemImage: "dollarsign.circle.fill")
+                        }
+                    
+                    ClothingsView(vm: vm)
+                        .tabItem {
+                            Label("의류", systemImage: "tshirt.fill")
+                        }
+                } //:TABVIEW
+            }
         } //:NAVIGATION
     }//: body
+}
+
+struct MainView: View {
+    @Binding var isCurrentItemInCart: Bool
+    @Binding var showTotalList: Bool
+    let vm: ShoppingMallViewModel
+    
+    var body: some View {
+        
+        List {
+            ForEach(vm.products, id: \.id) { product in
+                Button {
+                    // action
+                    if product.inStock {
+                        isCurrentItemInCart.toggle()
+                    }
+                    if isCurrentItemInCart && product.inStock {
+                        vm.itemsInCart.append(product)
+                    } else {
+                        vm.itemsInCart.removeAll(where: { $0.id == product.id })
+                    }
+                } label: {
+                    HStack {
+                        Text(product.name)
+                            .frame(width: 75)
+                            .padding(.trailing, 5)
+                        Text("$\(product.price)")
+                            .frame(width: 55)
+                            .padding(.trailing, 5)
+                        Text(product.category)
+                            .frame(width: 85)
+                            .padding(.trailing, 5)
+                        Text(product.inStock ? "✓" : "재고없음")
+                            .frame(width: 30)
+                            .padding(.trailing, 5)
+                        Text(product.discount != nil ? "\(product.discount!)% 할인" : "-")
+                    } //:HSTACK
+                    .foregroundStyle(vm.itemsInCart.contains(where: { $0.id == product.id }) ? .orange : .black)
+                }
+            } //:LOOP
+        } //:LIST
+        .navigationTitle("상품 분석 앱")
+        .navigationBarTitleDisplayMode(.inline)
+        
+        Button("상품 선택") {
+            showTotalList = false
+        }
+    }//:body
 }
 
 struct DiscountView: View {
     let vm: ShoppingMallViewModel
     
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(vm.products, id: \.id) { product in
+        List {
+            Section {
+                ForEach(vm.discountedItems, id: \.name) { discountedItem in
                     HStack {
-                        Text(product.name)
-                            .frame(width: 100)
+                        Text("\(discountedItem.discount)%")
+                            .frame(width: 50)
+                            .padding(.trailing, 5)
+                        RoundedRectangle(cornerRadius: 10)
+                            .frame(width: 50, height: 2)
                             .padding(.trailing, 15)
-                        Text("$\(product.price)")
-                            .frame(width: 60)
-                            .padding(.trailing, 15)
-                        Text(product.inStock ? "✓" : "재고없음")
-                            .frame(width: 30)
-                            .padding(.trailing, 15)
-                        Text(product.discount != nil ? "\(product.discount!)% 할인" : "-")
+                        Text(discountedItem.name)
                     } //:HSTACK
                 } //:LOOP
-            } //:LIST
-        } //:NAVIGATION
+            } header: {
+                Label("할인물품 목록", systemImage: "megaphone.fill")
+                    .font(.title2)
+            } footer: {
+                Label("총 \(vm.discountedItems.count)개 상품 할인 중", systemImage: "tag.fill")
+                    .font(.headline)
+            }//:SECTION
+        } //:LIST
+        .navigationTitle("할인 중인 상품")
+        .navigationBarTitleDisplayMode(.inline)
     }//: body
+}
+
+struct StockView: View {
+    let vm: ShoppingMallViewModel
+    
+    var body: some View {
+        List {
+            Section {
+                //content
+                ForEach(vm.electronicsInStock, id: \.id) { productInStock in
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(productInStock.name)
+                        HStack(spacing: 50) {
+                            Text("$\(productInStock.price)")
+                            if let discountedProduct = productInStock.discount {
+                                Label("\(discountedProduct)% 할인", systemImage: "tag.fill")
+                            }
+                        } //:HSTACK
+                        Text(productInStock.inStock ? "✅ 재고 있음" : "❎ 재고 없음")
+                    } //:VSTACK
+                } //:LOOP
+            } header: {
+                Label("재고 있는 전자제품", systemImage: "computermouse.fill")
+                    .font(.title2)
+            } footer: {
+                Label("총 \(vm.electronicsInStock.count)개 상품", systemImage: "tag.fill")
+                    .font(.headline)
+            }//:SECTION
+        } //:LIST
+    }//: body
+}
+
+struct PriceView: View {
+    let vm: ShoppingMallViewModel
+    
+    var body: some View {
+        List {
+            Section {
+                // content
+                ForEach(vm.products, id: \.id) { product in
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 15) {
+                            Text(product.name)
+                                .frame(width: 120)
+                            if !product.inStock {
+                                Text("❌ 품절")
+                                    .frame(width: 150)
+                            }
+                        } //:HSTACK
+                        HStack(spacing: 15) {
+                            Text("$\(product.price)")
+                                .frame(width: 90)
+                            Image(systemName: "arrow.right")
+                                .frame(width: 50)
+                            Text("$\(product.discountedPrice)")
+                                .frame(width: 90)
+                            Text("💵")
+                        } //:HSTACK
+                    } //:VSTACK
+                } //:LOOP
+            } header: {
+                Label("할인 적용 후 최종 가격", systemImage: "dollarsign")
+                    .font(.title2)
+            } footer: {
+                Label("전체 \(vm.products.count)개 상품 가격 표시", systemImage: "tag.fill")
+                    .font(.headline)
+            }//:SECTION
+
+        } //:LIST
+    }
+}
+
+struct TotalPriceView: View {
+    let vm: ShoppingMallViewModel
+    
+    var body: some View {
+        List {
+            Section {
+                //content
+                ForEach(vm.itemsInCart, id: \.id) { item in
+                    HStack {
+                        Text(item.name)
+                            .frame(width: 120)
+                        Text("$\(item.discountedPrice)")
+                    }
+                }
+            } header: {
+                Text("선택된 상품")
+                    .font(.title2)
+            } footer: {
+                Label("최종 금액: $\(vm.totalPriceInCart)", systemImage: "dollarsign")
+                    .font(.headline)
+            }
+
+            Button("💳 결제하기") {
+                
+            }
+        }
+        .navigationTitle("🛒 장바구니 총액 계산")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct ClothingsView: View {
+    let vm: ShoppingMallViewModel
+    
+    var body: some View {
+        List {
+            Section {
+                //content
+                ForEach(vm.clothingsWithReasonablePriceOrder) { product in
+                    VStack(alignment: .leading, spacing: 10) {
+                        if let indexValue = vm
+                            .clothingsWithReasonablePriceOrder
+                            .firstIndex(where: { $0.id.uuidString == product.id.uuidString }) {
+                            HStack {
+                                Text("\(indexValue + 1)위")
+                                    .frame(width: 50)
+                                Text(product.name)
+                            }
+                        }
+                        
+                        HStack {
+                            Text("")
+                                .frame(width: 50)
+                            Text("$\(product.price)")
+                                .frame(width: 50, alignment: .leading)
+                            Image(systemName: "arrow.right")
+                            Text("$\(product.discountedPrice)")
+                                .frame(width: 50)
+                        }
+                        
+                        HStack {
+                            Text("")
+                                .frame(width: 50)
+                            if let discounted = product.discount {
+                                Text("[\(discounted)% 할인]")
+                            } else {
+                                Text("할인 없음")
+                            }
+                            Text("✅")
+                                .frame(width: 50)
+                        }
+                        
+                    }
+                }
+            } header: {
+                Label("재고 있는 의류 중 가격 낮은 순", systemImage: "lightbulb.max.fill")
+                    .font(.title2)
+            }
+
+        }
+    }
 }
 
 #Preview {
