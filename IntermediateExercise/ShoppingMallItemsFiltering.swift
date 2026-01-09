@@ -52,9 +52,16 @@ class ShoppingMallViewModel: ObservableObject {
         Product(name: "초콜릿(1박스)", category: "Food", price: 18, inStock: false, discount: nil)
     ]
     
-    var discountedItemList: [Product] {
-        products
-            .filter { $0.discount != nil }
+//    var discountedItemList: [Product] {
+//        products
+//            .filter { $0.discount != nil }
+//    }
+    
+    var discountedItems: [(discount: Int, name: String)] {
+        products.compactMap { product in
+            guard let discount = product.discount else {return nil}
+            return (discount, product.name)
+        }
     }
     
     var electronicsInStock: [Product] {
@@ -66,13 +73,17 @@ class ShoppingMallViewModel: ObservableObject {
         itemsInCart.map { $0.discountedPrice }.reduce(0, +)
     }
     
-    var clothingsWithReasonablePrice: [Product] {
+    var clothingsWithReasonablePriceOrder: [Product] {
         Array(
             products
-                .filter { $0.inStock }
+                .filter { $0.inStock && $0.category == "Clothing" }
                 .sorted { $0.discountedPrice <= $1.discountedPrice }
                 .prefix(5)
         )
+    }
+    
+    var finalPrices: [(name: String, original: Int, final: Int)] {
+        products.map { ($0.name, $0.price, $0.discountedPrice) }
     }
 }
 
@@ -113,6 +124,11 @@ struct ShoppingMallItemsFiltering: View {
                     TotalPriceView(vm: vm)
                         .tabItem {
                             Label("총액", systemImage: "dollarsign.circle.fill")
+                        }
+                    
+                    ClothingsView(vm: vm)
+                        .tabItem {
+                            Label("의류", systemImage: "tshirt.fill")
                         }
                 } //:TABVIEW
             }
@@ -174,9 +190,9 @@ struct DiscountView: View {
     var body: some View {
         List {
             Section {
-                ForEach(vm.discountedItemList, id: \.id) { discountedItem in
+                ForEach(vm.discountedItems, id: \.name) { discountedItem in
                     HStack {
-                        Text("\(discountedItem.discount!)%")
+                        Text("\(discountedItem.discount)%")
                             .frame(width: 50)
                             .padding(.trailing, 5)
                         RoundedRectangle(cornerRadius: 10)
@@ -189,7 +205,7 @@ struct DiscountView: View {
                 Label("할인물품 목록", systemImage: "megaphone.fill")
                     .font(.title2)
             } footer: {
-                Label("총 \(vm.discountedItemList.count)개 상품 할인 중", systemImage: "tag.fill")
+                Label("총 \(vm.discountedItems.count)개 상품 할인 중", systemImage: "tag.fill")
                     .font(.headline)
             }//:SECTION
         } //:LIST
@@ -240,7 +256,7 @@ struct PriceView: View {
                         HStack(spacing: 15) {
                             Text(product.name)
                                 .frame(width: 120)
-                            if product.inStock {
+                            if !product.inStock {
                                 Text("❌ 품절")
                                     .frame(width: 150)
                             }
@@ -298,6 +314,60 @@ struct TotalPriceView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 }
+
+
+struct ClothingsView: View {
+    let vm: ShoppingMallViewModel
+    
+    var body: some View {
+        List {
+            Section {
+                //content
+                ForEach(vm.clothingsWithReasonablePriceOrder) { product in
+                    VStack(alignment: .leading, spacing: 10) {
+                        if let indexValue = vm
+                            .clothingsWithReasonablePriceOrder
+                            .firstIndex(where: { $0.id.uuidString == product.id.uuidString }) {
+                            HStack {
+                                Text("\(indexValue + 1)위")
+                                    .frame(width: 50)
+                                Text(product.name)
+                            }
+                        }
+                        
+                        HStack {
+                            Text("")
+                                .frame(width: 50)
+                            Text("$\(product.price)")
+                                .frame(width: 50, alignment: .leading)
+                            Image(systemName: "arrow.right")
+                            Text("$\(product.discountedPrice)")
+                                .frame(width: 50)
+                        }
+                        
+                        HStack {
+                            Text("")
+                                .frame(width: 50)
+                            if let discounted = product.discount {
+                                Text("[\(discounted)% 할인]")
+                            } else {
+                                Text("할인 없음")
+                            }
+                            Text("✅")
+                                .frame(width: 50)
+                        }
+                        
+                    }
+                }
+            } header: {
+                Label("재고 있는 의류 중 가격 낮은 순", systemImage: "lightbulb.max.fill")
+                    .font(.title2)
+            }
+
+        }
+    }
+}
+
 
 #Preview {
     ShoppingMallItemsFiltering()
