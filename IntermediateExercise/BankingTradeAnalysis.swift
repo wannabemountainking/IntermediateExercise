@@ -9,10 +9,10 @@ import SwiftUI
 import Combine
 
 
-enum TransactionType: Identifiable {
-    case deposit
-    case withdrawal
-    case transfer
+enum TransactionType: String, Identifiable {
+    case deposit = "수입"
+    case withdrawal = "지출"
+    case transfer = "이체"
     
     var id: String {
         switch self {
@@ -56,19 +56,10 @@ struct Transaction: Identifiable {
     var memo: String?
 }
 
-struct NewTransaction: Identifiable {
-    let id = UUID()
-    let date: Date
-    let amount: String
-    var type: TransactionType
-    var category: categoryType?
-    var memo: String?
-}
-
 enum DisplayMode: String, CaseIterable {
     case none
     case withdrawalOnly = "출금 내역"
-    case overOneThousandTransactionFromIntToString = "거래금액에 1,000 단위 구분 쉼표 추가"
+    case formattedAmounts = "거래금액에 1,000 단위 구분 쉼표 추가"
     case totalExpenditureInMonth = "한 달 총 지출액"
     case transactionWithCategory = "카테고리가 입력된 거래"
     case meanValueOfFoodExpenditure = "식비 중 상위 10건의 큰 금액의 평균"
@@ -87,15 +78,9 @@ class TransactionViewModel: ObservableObject {
     }
     
     //2. map: 거래금액에 1,000원 단위 구분 쉼표 추가한 문자열로 변환
-    var overOneThousandTransactionFromIntToString: [NewTransaction] {
-        transactions.map {
-            NewTransaction(
-                date: $0.date,
-                amount: $0.amount.formatted(.number.decimalSeparator(strategy: .always)),
-                type: $0.type,
-                category: $0.category,
-                memo: $0.memo
-            )
+    var formattedAmounts: [String] {
+        transactions.map { transactions in
+            transactions.amount.formatted(.number.grouping(.automatic))
         }
     }
     
@@ -103,8 +88,7 @@ class TransactionViewModel: ObservableObject {
     var totalExpenditureInMonth: Int {
         transactions
             .filter { $0.type == .withdrawal }
-            .map { $0.amount }
-            .reduce(0, +)
+            .reduce(0) { $0 + $1.amount}
     }
     
     // 4. compactMap: 카테고리가 입력된 거래만 추출
@@ -122,12 +106,13 @@ class TransactionViewModel: ObservableObject {
        - 상위 10건의 평균 금액 계산 (reduce 활용)
     */
     var meanValueOfFoodExpenditure: Int {
-        transactions
+        let top10 = transactions
             .filter { $0.type == .withdrawal && $0.category == .food }
             .sorted(by: { $0.amount > $1.amount })
             .prefix(10)
-            .map { $0.amount }
-            .reduce(0, +)
+        guard !top10.isEmpty else { return 0 }
+        let sum = top10.reduce(0) { $0 + $1.amount }
+        return sum / top10.count
     }
     
     private func transactionInitiate() {
@@ -275,14 +260,14 @@ struct BankingTradeAnalysis: View {
                 EmptyView()
             case .withdrawalOnly:
                 WithDrawalView(vm: vm)
-            case .overOneThousandTransactionFromIntToString:
-                WithDrawalView(vm: vm)
+            case .formattedAmounts:
+                OverOneThousandTransaction(vm: vm)
             case .totalExpenditureInMonth:
-                WithDrawalView(vm: vm)
+                TotalExpenditureView(vm: vm)
             case .transactionWithCategory:
-                WithDrawalView(vm: vm)
+                TransactionCategoryView(vm: vm)
             case .meanValueOfFoodExpenditure:
-                WithDrawalView(vm: vm)
+                MajorExpensesInFoodView(vm: vm)
             }
         }
     }
@@ -294,10 +279,69 @@ struct WithDrawalView: View {
         List {
             ForEach(vm.withdrawalOnly, id: \.id) { transaction in
                 HStack {
-                    Text(transaction.date.formatted(.abbreviated))
+                    Text(transaction.date.formatted(date: .numeric, time: .omitted))
+                    Text("\(transaction.amount)원")
+                    Text(transaction.type.rawValue)
+                    Text(transaction.category?.rawValue ?? "용도 미상")
+                    Text(transaction.memo ?? "지출처 미상")
                 }
             }
         }
+    }
+}
+
+struct OverOneThousandTransaction: View {
+    let vm: TransactionViewModel
+    var body: some View {
+        List {
+            ForEach(vm.formattedAmounts, id: \.self) { amount in
+                Text("\(amount)원")
+            }
+        }
+    }
+}
+
+struct TotalExpenditureView: View {
+    let vm: TransactionViewModel
+    var body: some View {
+        VStack {
+            Label("월간 총 지출액: \(vm.totalExpenditureInMonth)원", systemImage: "wonsign.bank.building.fill")
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundStyle(.white)
+                .padding(10)
+                .padding(.horizontal, 10)
+                .background(Color.blue)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding()
+        }
+    }
+}
+
+struct TransactionCategoryView: View {
+    let vm: TransactionViewModel
+    var body: some View {
+        List {
+            ForEach(vm.transactionWithCategory, id: \.id) { transaction in
+                HStack {
+                    Text(transaction.date.formatted(date: .numeric, time: .omitted))
+                    Text("\(transaction.amount)원")
+                    Text(transaction.type.rawValue)
+                    Text(transaction.category?.rawValue ?? "용도 미상")
+                    Text(transaction.memo ?? "지출처 미상")
+                }
+            }
+        }
+    }
+}
+
+struct MajorExpensesInFoodView: View {
+    let vm: TransactionViewModel
+    var body: some View {
+        Label("금액: \(vm.meanValueOfFoodExpenditure)원", systemImage: "fork.knife.circle.fill")
+            .font(.title3)
+            .fontWeight(.bold)
+            .foregroundStyle(.pink)
     }
 }
 
