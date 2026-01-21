@@ -18,6 +18,16 @@ struct Movie: Identifiable {
     var director: String?
 }
 
+//  enum으로 flag pattern 만들기
+enum MovieDisplayMode: String, CaseIterable {
+    case none
+    case moviesHavingRating = "평점이 있는 영화"
+    case latestMoviesOverEight = "2020년 이후 개봉한 평점 8.0 이상 영화"
+    case allGenre = "모든 영화의 장르 (중복 포함)"
+    case movieTitleAndYear = "모든 영화의 제목과 개봉년도"
+    case actionMasterpieces = "위대한 액션 영화 베스트 5"
+}
+
 class MovieDataViewModel: ObservableObject {
     
     let movies: [Movie] = [
@@ -167,86 +177,84 @@ class MovieDataViewModel: ObservableObject {
 
 
 struct GoodMovie: View {
-    @State private var showMoviesHavingRating: Bool = false
-    @State private var showLatestMoviesOverEight: Bool = false
-    @State private var showAllGenre: Bool = false
-    @State private var showMovieTitleAndYear: Bool = false
-    @State private var showActionMasterpieces: Bool = false
     
+    @State private var displayMode: MovieDisplayMode = .none
     let vm: MovieDataViewModel = MovieDataViewModel()
     
     var body: some View {
         NavigationStack {
             Form {
-                Button("평점이 있는 영화") {
-                    withAnimation(.spring) {
-                        showMoviesHavingRating = true
-                        allConditionFalseExceptNow(nowCondition: "showMoviesHavingRating")
+                ForEach(MovieDisplayMode.allCases.dropFirst(), id: \.self) { mode in
+                    Button(mode.rawValue) {
+                        withAnimation(.spring) {
+                            displayMode = mode
+                        }
                     }
                 }
-                .frame(width: .infinity, height: .infinity)
-                
-                Button("2020년 이후 개봉한 평점 8.0 이상 영화") {
-                    withAnimation(.spring) {
-                        showLatestMoviesOverEight = true
-                        allConditionFalseExceptNow(nowCondition: "showLatestMoviesOverEight")
-                    }
-                }
-                .frame(width: .infinity, height: .infinity)
-                
-                Button("모든 영화의 장르 (중복 포함)") {
-                    withAnimation(.spring) {
-                        showAllGenre = true
-                        allConditionFalseExceptNow(nowCondition: "showAllGenre")
-                    }
-                }
-                .frame(width: .infinity, height: .infinity)
-                
-                Button("모든 영화의 제목과 개봉년도") {
-                    withAnimation(.spring) {
-                        showMovieTitleAndYear = true
-                        allConditionFalseExceptNow(nowCondition: "showMovieTitleAndYear")
-                    }
-                }
-                .frame(width: .infinity, height: .infinity)
-                
-                Button("위대한 액션 영화 베스트 5") {
-                    withAnimation(.spring) {
-                        showActionMasterpieces = true
-                        allConditionFalseExceptNow(nowCondition: "showActionMasterpieces")
-                    }
-                }
-                .frame(width: .infinity, height: .infinity)
-            }//: Form
+            }
+            .navigationTitle("영화 데이터 분류")
+            .navigationBarTitleDisplayMode(.inline)
             
-            if showMoviesHavingRating {
-                List
+            switch displayMode {
+            case .none:
+                EmptyView()
+            case .moviesHavingRating:
+                List {
+                    Section {
+                        ForEach(vm.moviesHavingRating, id: \.id) { movie in
+                            HStack {
+                                Text(movie.title)
+                                Text(movie.director ?? "unknown")
+                                Text(String(describing: movie.year))
+                                Text(movie.genre.joined(separator: ", "))
+                                Text("\(String(describing: movie.rating ?? 0.0))")
+                            }
+                        }
+                    }
+                }
+            case .latestMoviesOverEight:
+                List {
+                    Section {
+                        ForEach(vm.latestMoviesOverEight, id: \.id) { movie in
+                            HStack {
+                                Text(movie.title)
+                                Text(movie.director ?? "unknown")
+                                Text(String(describing: movie.year))
+                                Text(movie.genre.joined(separator: ", "))
+                                Text("\(String(describing: movie.rating ?? 0.0))")
+                            }
+                        }
+                    }
+                }
+            case .allGenre:
+                Form {
+                    ForEach(vm.allGenre, id: \.self) { genre in
+                        Text(genre)
+                    }
+                }
+            case .movieTitleAndYear:
+                List {
+                    Section {
+                        ForEach(vm.moviesHavingTitleWithYear, id: \.self) { movie in
+                            HStack {
+                                Text(movie)
+                            }
+                        }
+                    }
+                }
+            case .actionMasterpieces:
+                List {
+                    Section {
+                        ForEach(vm.ActionMasterpieces, id: \.self) { movie in
+                            HStack {
+                                Text(movie)
+                            }
+                        }
+                    }
+                }
             }
             
         } //:NAVIGATION
-    }
-    
-    private func allConditionFalseExceptNow(nowCondition: String) {
-
-        showAllGenre = false
-        showActionMasterpieces = false
-        showMoviesHavingRating = false
-        showMovieTitleAndYear = false
-        showLatestMoviesOverEight = false
-        
-        switch nowCondition {
-            case "showAllGenre":
-                showAllGenre = true
-            case "showActionMasterpieces":
-                showActionMasterpieces = true
-            case "showMoviesHavingRating":
-                showMoviesHavingRating = true
-            case "showMovieTitleAndYear":
-                showMovieTitleAndYear = true
-            case "showLatestMoviesOverEight":
-                showLatestMoviesOverEight = true
-            default: print("에러")
-        }
     }
 }
 
