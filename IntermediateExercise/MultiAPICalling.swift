@@ -11,86 +11,104 @@ import Combine
 
 class APIViewModel: ObservableObject {
     @Published var userInfo: String?
-    @Published var userInfoDownloading: Bool = false
     @Published var boardLists: [String] = []
-    @Published var boardListsDownloading: Bool = false
     @Published var numberOfNotifications: Int?
-    @Published var numberOfNotificationsDownloading: Bool = false
+    @Published var isLoading: Bool = false
+    @Published var progress: Double = 0.0
+    @Published var progressText: String = ""
     
-    func getUserInfo() {
-        userInfoDownloading = true
-        defer { userInfoDownloading = false }
-        DispatchQueue.global().async {
-            Thread.sleep(forTimeInterval: 3)
-            self.userInfo = "김도윤"
-        }
-    }
-    
-    func getBoardLists() {
-        boardListsDownloading = true
-        defer { boardListsDownloading = false }
+    func fetchAllData() {
+        userInfo = nil
+        boardLists = []
+        numberOfNotifications = nil
+        isLoading = true
+        progress = 0.0
         
+        let group = DispatchGroup()
+        var completedCount: Int = 0
+        let totalCount: Int = 3
+        
+        // 사용자 정보 API
+        group.enter()
         DispatchQueue.global().async {
             Thread.sleep(forTimeInterval: 2)
-            self.boardLists = ["나", "너", "우리"]
+            DispatchQueue.main.async {
+                self.userInfo = "김도윤"
+                completedCount += 1
+                self.progress = Double(completedCount) / Double(totalCount)
+                self.progressText = "\(completedCount) / \(totalCount) 완료"
+                group.leave()
+            }
         }
-    }
-    
-    func getNumberOfNotis() {
-        numberOfNotificationsDownloading = true
-        defer { numberOfNotificationsDownloading = false}
         
+        // 게시물 목록 API
+        group.enter()
+        DispatchQueue.global().async {
+            Thread.sleep(forTimeInterval: 3)
+            DispatchQueue.main.async {
+                self.boardLists = ["I", "You", "We"]
+                completedCount += 1
+                self.progress = Double(completedCount) / Double(totalCount)
+                self.progressText = "\(completedCount) / \(totalCount) 완료"
+                group.leave()
+            }
+        }
+        
+        // 알림 갯수 API
+        group.enter()
         DispatchQueue.global().async {
             Thread.sleep(forTimeInterval: 1)
-            self.numberOfNotifications = 7
+            DispatchQueue.main.async {
+                self.numberOfNotifications = 7
+                completedCount += 1
+                self.progress = Double(completedCount) / Double(completedCount)
+                self.progressText = "\(completedCount) / \(totalCount) 완료"
+                group.leave()
+            }
+        }
+        
+        group.notify(queue: .main) {
+            self.isLoading = false
+            self.progressText = "\(completedCount) / \(totalCount) 완료 3개 API 호출 완료"
         }
     }
 }
 
 struct MultiAPICalling: View {
     @StateObject private var vm = APIViewModel()
-    @State private var user: String = ""
-    @State private var lists: [String] = []
-    @State private var numOfNotis: Int = 0
     
     var body: some View {
-        Form {
+        VStack {
             Button("get Infos") {
-                let group = DispatchGroup()
-                
-                group.enter()
-                DispatchQueue.global().async {
-                    vm.getUserInfo()
-                    group.leave()
-                }
-                
-                group.enter()
-                DispatchQueue.global().async {
-                    vm.getBoardLists()
-                    group.leave()
-                }
-                
-                group.enter()
-                DispatchQueue.global().async {
-                    vm.getNumberOfNotis()
-                    group.leave()
-                }
-                
-                group.notify(queue: .main) {
-                    user = vm.userInfo ?? "너"
-                    lists = vm.boardLists
-                    numOfNotis = vm.numberOfNotifications ?? 0
+                vm.fetchAllData()
+            }
+            .disabled(vm.isLoading)
+            
+            if vm.isLoading {
+                VStack(spacing: 20) {
+                    ProgressView(value: vm.progress) {
+                        Text("로딩 중...")
+                    } currentValueLabel: {
+                        Text(vm.progressText)
+                    }
+                    .tint(.blue)
                 }
             }
         }
         
-        Text(user)
-        List {
-            ForEach(lists, id: \.self) { list in
-                Text(list)
+        Form {
+            Section("사용자 정보") {
+                Text(vm.userInfo ?? "없음")
+            }
+            Section("게시물 목록") {
+                ForEach(vm.boardLists, id: \.self) { item in
+                    Text(item)
+                }
+            }
+            Section("알림 갯수") {
+                Text("\(vm.numberOfNotifications ?? 0)개")
             }
         }
-        Text("\(numOfNotis)개")
     }
 }
 
