@@ -9,15 +9,13 @@ import SwiftUI
 import Combine
 
 
-<<<<<<< HEAD
-=======
 enum TaskResult {
     case userInfo(String)
     case boardLists([String])
     case notifications(Int)
 }
 
->>>>>>> origin/main
+
 class APIViewModel: ObservableObject {
     @Published var userInfo: String?
     @Published var boardLists: [String] = []
@@ -26,19 +24,15 @@ class APIViewModel: ObservableObject {
     @Published var progress: Double = 0.0
     @Published var progressText: String = ""
     
-<<<<<<< HEAD
-    func fetchAllData() {
-=======
     @MainActor
     func fetchAllData() async {
->>>>>>> origin/main
         userInfo = nil
         boardLists = []
         numberOfNotifications = nil
         isLoading = true
         progress = 0.0
-        
-<<<<<<< HEAD
+
+        /*
         let group = DispatchGroup()
         var completedCount: Int = 0
         let totalCount: Int = 3
@@ -86,7 +80,7 @@ class APIViewModel: ObservableObject {
             self.isLoading = false
             self.progressText = "\(completedCount) / \(totalCount) 완료 3개 API 호출 완료"
         }
-=======
+        */
         var completedCount = 0
         let totalCount = 3
         
@@ -142,7 +136,6 @@ class APIViewModel: ObservableObject {
     func fetchNumberOfNotis() async -> Int {
         try? await Task.sleep(for: .seconds(1))
         return 7
->>>>>>> origin/main
     }
 }
 
@@ -151,12 +144,6 @@ struct MultiAPICalling: View {
     
     var body: some View {
         VStack {
-<<<<<<< HEAD
-            Button("get Infos") {
-                vm.fetchAllData()
-            }
-            .disabled(vm.isLoading)
-=======
             Button {
                 Task {
                     await vm.fetchAllData()
@@ -171,19 +158,11 @@ struct MultiAPICalling: View {
             .buttonStyle(.borderedProminent)
             .disabled(vm.isLoading)
             .padding(.horizontal)
->>>>>>> origin/main
             
             if vm.isLoading {
                 VStack(spacing: 20) {
                     ProgressView(value: vm.progress) {
                         Text("로딩 중...")
-<<<<<<< HEAD
-                    } currentValueLabel: {
-                        Text(vm.progressText)
-                    }
-                    .tint(.blue)
-                }
-=======
                             .font(.headline)
                     } currentValueLabel: {
                         Text(vm.progressText)
@@ -200,7 +179,6 @@ struct MultiAPICalling: View {
                 .background(Color.blue.opacity(0.1))
                 .cornerRadius(12)
                 .padding(.horizontal)
->>>>>>> origin/main
             }
         }
         
@@ -217,11 +195,10 @@ struct MultiAPICalling: View {
                 Text("\(vm.numberOfNotifications ?? 0)개")
             }
         }
-<<<<<<< HEAD
-=======
         .navigationTitle("대시보드")
         .navigationBarTitleDisplayMode(.inline)
->>>>>>> origin/main
+        .navigationTitle("대시보드")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
