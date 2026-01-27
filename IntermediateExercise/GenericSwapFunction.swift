@@ -40,8 +40,8 @@ struct GenericSwapFunction<T>: View {
         NavigationStack {
             Form {
                 Text("Before Swap")
-                Text("first = \(originalFirst)")
-                Text("second = \(originalSecond)")
+                Text("first = \(String(describing: originalFirst))")
+                Text("second = \(String(describing: originalSecond))")
             }
             .navigationTitle("Swap Demo")
             .navigationBarTitleDisplayMode(.inline)
@@ -53,8 +53,8 @@ struct GenericSwapFunction<T>: View {
             if showResult {
                 Form {
                     Text("After Swap")
-                    Text("first = \(first)")
-                    Text("second = \(second)")
+                    Text("first = \(String(describing: first))")
+                    Text("second = \(String(describing: second))")
                 }
             }
         }
