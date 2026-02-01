@@ -6,46 +6,56 @@
 //
 
 import SwiftUI
+import Combine
+import UserNotifications
 
-<<<<<<< HEAD
 
-=======
-struct Contents: Identifiable {
-    let id = UUID()
-    var title: String
-    var content: String {
-        let seconds = title.components(separatedBy: "초")[0]
-        return "\(seconds)초가 지났습니다"
-    }
-}
-
-struct AlarmTimer: Identifiable {
-    let id = UUID()
-    let title: String
-    var contents: Contents {
-        Contents(title: title)
-    }
+enum TimerPreset: String, Identifiable, CaseIterable {
+    case none = "타이머 선택 안함"
+    case short = "5초"
+    case medium = "10초"
+    case long = "30초"
+    case veryLong = "60초"
     
-    var designatedTime: Double {
-        guard let time = Double(title.components(separatedBy: "초")[0]) else { return 0.0 }
-        return time
-    }
-    
-    func startTimer() {
-        DispatchQueue.global().asyncAfter(deadline: .now() + designatedTime) {
-            DispatchQueue.main.async {
-                <#code#>
-            }
+    var id: Double {
+        switch self {
+        case .none: return 0
+        case .short: return 5
+        case .medium: return 10
+        case .long: return 30
+        case .veryLong: return 60
         }
     }
 }
->>>>>>> origin/main
 
+class NotificationManager {
+    static let shared: NotificationManager = NotificationManager()
+    private init() {}
+    
+    // 1. 권한 요청
+    func requestAuthorization() {
+        let options: UNAuthorizationOptions = [.alert, .sound, .badge]
+        UNUserNotificationCenter.current().requestAuthorization(with: options) { (hasAuthorized, error) in
+            if let error {
+                print("에러: \(error)")
+            } else {
+                print("성공")
+            }
+        }
+    }
+    
+}
+
+class SimpleTimerViewModel: ObservableObject {
+    @Published var timerSelected: TimerPreset = .none
+    
+    let timers: [CustomTimer] = TimerPreset.allCases.dropFirst()
+    
+    //
+}
 
 struct SimpleTimerAlarm: View {
-    @State private var selectedTime: Int = 5
-    
-    private let timeIntervals: [Int] = [5, 10, 30, 60]
+    @StateObject private var vm: SimpleTimerViewModel = SimpleTimerViewModel()
     
     var body: some View {
         VStack(alignment: .leading, spacing: 30) {
@@ -60,16 +70,9 @@ struct SimpleTimerAlarm: View {
                     //action
                     selectedTime = timeIntervals[index]
                 } label: {
-<<<<<<< HEAD
-                    Text("\(timeIntervals[index])초      \()")
-=======
-//                    Text("\(timeIntervals[index])초      \()")
->>>>>>> origin/main
+                    Text("\(timeIntervals[index])초")
                 }
-
             }
-
-
         }
         .padding(50)
     }
