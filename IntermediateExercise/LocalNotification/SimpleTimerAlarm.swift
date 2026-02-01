@@ -7,7 +7,39 @@
 
 import SwiftUI
 
+<<<<<<< HEAD
 
+=======
+struct Contents: Identifiable {
+    let id = UUID()
+    var title: String
+    var content: String {
+        let seconds = title.components(separatedBy: "초")[0]
+        return "\(seconds)초가 지났습니다"
+    }
+}
+
+struct AlarmTimer: Identifiable {
+    let id = UUID()
+    let title: String
+    var contents: Contents {
+        Contents(title: title)
+    }
+    
+    var designatedTime: Double {
+        guard let time = Double(title.components(separatedBy: "초")[0]) else { return 0.0 }
+        return time
+    }
+    
+    func startTimer() {
+        DispatchQueue.global().asyncAfter(deadline: .now() + designatedTime) {
+            DispatchQueue.main.async {
+                <#code#>
+            }
+        }
+    }
+}
+>>>>>>> origin/main
 
 
 struct SimpleTimerAlarm: View {
@@ -28,7 +60,11 @@ struct SimpleTimerAlarm: View {
                     //action
                     selectedTime = timeIntervals[index]
                 } label: {
+<<<<<<< HEAD
                     Text("\(timeIntervals[index])초      \()")
+=======
+//                    Text("\(timeIntervals[index])초      \()")
+>>>>>>> origin/main
                 }
 
             }
