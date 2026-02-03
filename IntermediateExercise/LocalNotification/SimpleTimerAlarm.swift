@@ -10,7 +10,6 @@ import Combine
 import UserNotifications
 
 
-
 enum TimerType: String, Identifiable, CaseIterable {
     case none = "타이머 선택 안함"
     case short = "5초"
@@ -50,7 +49,7 @@ class NotiManager {
             }
         }
     }
-
+    
     func timeNotification(type: TimerType) {
         let content = UNMutableNotificationContent()
         content.title = "타이머 완료"
@@ -117,7 +116,7 @@ struct SimpleTimerAlarm: View {
                 .fontWeight(.semibold)
             
             Divider()
-
+            
             VStack(spacing: 20) {
                 ForEach(vm.timers.indices, id: \.self) { index in
                     Button {
