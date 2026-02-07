@@ -7,29 +7,50 @@
 
 import SwiftUI
 
+
+enum TabOfCategory: String, Identifiable, CaseIterable {
+    case home = "홈"
+    case search = "검색"
+    case profile = "프로필"
+    
+    var id: Self { self }
+}
+
 struct TapIndicator: View {
     
-    private let categories: [String] = ["홈", "검색", "프로필"]
-    @State private var selectedItem: String = ""
+    private let categories: [TabOfCategory] = TabOfCategory.allCases
+    @State private var selectedTab: TabOfCategory = .home
     @Namespace private var itemIndicator
     
     var body: some View {
-        VStack {
+        ScrollView {
             HStack {
-                ForEach(categories, id: \.self) { item in
+                ForEach(categories, id: \.id) { item in
                     ZStack {
-                        Text(item)
+                        if selectedTab.id == item.id {
+                            Capsule()
+                                .fill(Color.green)
+                                .matchedGeometryEffect(id: "category", in: itemIndicator)
+                                .frame(width: 40, height: 3)
+                                .offset(y: 20)
+                        }
                         
-                        RoundedRectangle(cornerRadius: 10)
-                            .
+                        Text(item.rawValue)
+                            .font(.title2)
+                            .fontWeight(selectedTab.id == item.id ? .bold : .regular)
+                    } //:ZSTACK
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .onTapGesture {
+                        withAnimation(.easeInOut) {
+                            selectedTab = item
+                        }
                     }
-                }
-            }
-            .frame(maxWidth: .infinity)
-            
+                } //:LOOP
+            } //:HSTACK
             Spacer()
-        }
-    }
+        } //:SCROLL
+    }//:body
 }
 
 #Preview {
