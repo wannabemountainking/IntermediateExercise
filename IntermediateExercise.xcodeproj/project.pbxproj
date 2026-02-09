@@ -10,9 +10,22 @@
 		EE7644FD2F0A7E6300BE8CBA /* IntermediateExercise.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = IntermediateExercise.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EE742E472F3ABD7000F451AF /* Exceptions for "IntermediateExercise" folder in "IntermediateExercise" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			platformFiltersByRelativePath = {
+				CoreData/PersistentContainers/SimpleTodoStorage.xcdatamodeld = (ios, );
+			};
+			target = EE7644FC2F0A7E6300BE8CBA /* IntermediateExercise */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		EE7644FF2F0A7E6300BE8CBA /* IntermediateExercise */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EE742E472F3ABD7000F451AF /* Exceptions for "IntermediateExercise" folder in "IntermediateExercise" target */,
+			);
 			path = IntermediateExercise;
 			sourceTree = "<group>";
 		};
