@@ -98,7 +98,7 @@ struct DefaultTextField: ViewModifier {
             .font(.headline)
             .padding(.leading)
             .frame(maxWidth: .infinity)
-            .frame(height: 60)
+            .frame(height: 30)
             .background(Color.gray.opacity(0.2))
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal)
@@ -115,7 +115,7 @@ struct DefaultButtonModifier: ViewModifier {
         content
             .font(.title)
             .foregroundStyle(.white)
-            .frame(height: 60)
+            .frame(height: 30)
             .frame(maxWidth: .infinity)
             .background(backgroundColor)
             .clipShape(RoundedRectangle(cornerRadius: 10))
