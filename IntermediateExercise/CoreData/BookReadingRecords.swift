@@ -1,0 +1,287 @@
+//
+//  BookReadingRecords.swift
+//  IntermediateExercise
+//
+//  Created by YoonieMac on 2/11/26.
+//
+
+import SwiftUI
+import Combine
+import CoreData
+
+
+enum Status: String, Identifiable, CaseIterable {
+    case reading = "읽는 중"
+    case completed = "완독"
+    case wishlist = "읽고 싶음"
+    
+    var id: String {
+        switch self {
+        case .reading: return "reading"
+        case .completed: return "completed"
+        case .wishlist: return "toRead"
+        }
+    }
+    
+    static func stringToStatus(statusString: String) -> Status {
+        switch statusString {
+        case "읽는 중": return Status.reading
+        case "완독": return Status.completed
+        case "읽고 싶음": return Status.wishlist
+        default: return Status.reading
+        }
+    }
+}
+
+class BookRecordsViewModel: ObservableObject {
+    
+    struct BookData: Identifiable {
+        let id = UUID()
+        let status: Status
+        var bookRecords: [Book]
+        var booksProgress: [(book: Book, progress: Double)] {
+            bookRecords
+                .map { (
+                    book: $0,
+                    progress: Double($0.currentPage) / Double($0.totalPage)
+                ) }
+        }
+    }
+    // bookDataWithProgress
+    var bookDataWithProgress: [BookData] {
+        let grouped = Dictionary(grouping: selectedBooks) {
+            $0.status ?? ""
+        }
+        
+        return grouped
+            .map {
+                BookData(
+                    status: Status.stringToStatus(statusString: $0.key),
+                    bookRecords: $0.value.sorted(by: { $0.addedDate ?? Date() < $1.addedDate ?? Date() })
+                )
+            }
+    }
+    
+    
+    
+    let container: NSPersistentContainer
+    
+    @Published var selectedBooks: [Book] = []
+    
+    init() {
+        container = NSPersistentContainer(name: "BookReadingRecords")
+        
+        container.loadPersistentStores { [weak self] (description, error) in
+            guard let self else {return}
+            if let error {
+                print("Error Loading Core Data: \(error)")
+            } else {
+                print("Successfully loaded Core Data: \(description)")
+            }
+        }
+        fetchRecords()
+    }
+    
+    //fetching
+    private func fetchRecords() {
+        let request = NSFetchRequest<Book>(entityName: "Book")
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \Book.title, ascending: false)]
+        do {
+            selectedBooks = try container.viewContext.fetch(request)
+        } catch {
+            print("Error Fetching Core Data: \(error)")
+        }
+    }
+    
+    // saving
+    private func saveRecords() {
+        do {
+            try container.viewContext.save()
+            fetchRecords()
+        } catch {
+            print("Error Saving Core Data: \(error)")
+        }
+    }
+    
+    // MARK: - Create, update, delete
+    // creating
+    func addBookRecords(title: String, author: String, currentPage: Double, totalPages: Double, status: Status) {
+        guard currentPage <= totalPages else {
+            print("현재 페이지를 잘못 입력했습니다")
+            return
+        }
+        let newBook = Book(context: container.viewContext)
+        newBook.id = UUID()
+        newBook.addedDate = Date()
+        newBook.title = title
+        newBook.author = author
+        newBook.currentPage = Int16(currentPage)
+        newBook.totalPage = Int16(totalPages)
+        newBook.status = status.rawValue
+        saveRecords()
+    }
+    
+    // deleting
+    func deleteRecords(book: Book) {
+        container.viewContext.delete(book)
+        saveRecords()
+    }
+    
+    // state Updating{
+    func updateRecords(title: String, newStatus: Status) {
+        guard let index = selectedBooks.firstIndex(where: { $0.title == title }) else {return}
+        selectedBooks[index].status = newStatus.rawValue
+        saveRecords()
+    }
+
+}
+
+
+struct BookReadingRecords: View {
+    
+    @StateObject private var vm = BookRecordsViewModel()
+    
+    @State private var bookTitle: String = ""
+    @State private var bookAuthor: String = ""
+    @State private var currentPageOfBook: String = ""
+    @State private var totalPageOfBook: String = ""
+    @State private var readingStatus: Status = .reading
+    
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 5) {
+                        Text("책 제목:")
+                        TextField("제목 입력...", text: $bookTitle)
+                            .withDefaultTextField()
+                    }
+                    HStack(spacing: 5) {
+                        Text("저자:")
+                        TextField("저자 입력...", text: $bookAuthor)
+                            .withDefaultTextField()
+                    }
+                    HStack(spacing: 5) {
+                        Text("페이지:")
+                        TextField("현재 페이지", text: $currentPageOfBook)
+                            .withDefaultTextField()
+                        Text("/")
+                        TextField("총 페이지", text: $totalPageOfBook)
+                            .withDefaultTextField()
+                    }
+                }
+                
+                HStack {
+                    Text("상태:")
+                    
+                    Button("읽는 중") {
+                        // 상태 변환 기록 등 // 상태는 Struct로 할 필요가 있음
+                        readingStatus = .reading
+                    }
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(height: 40)
+                    .padding(.horizontal, 15)
+                    .background(readingStatus == .reading ? Color.green : .gray)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .shadow(radius: 10)
+                    .padding(10)
+                    
+                    Button("완독") {
+                        // 상태 변환 기록 필요
+                        readingStatus = .completed
+                    }
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(height: 40)
+                    .padding(.horizontal, 15)
+                    .background(readingStatus == .completed ? Color.green : .gray.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .shadow(radius: 10)
+                    .padding(10)
+                    
+                    Button("읽고 싶음") {
+                        // 상태 변환 기록 필요
+                        readingStatus = .wishlist
+                    }
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(height: 40)
+                    .padding(.horizontal, 15)
+                    .background(readingStatus == .wishlist ? Color.green : .gray.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .shadow(radius: 10)
+                    .padding(10)
+                }
+                
+                Button("추가하기") {
+                    // action addBook
+                    vm.addBookRecords(
+                        title: bookTitle,
+                        author: bookAuthor,
+                        currentPage: Double(currentPageOfBook) ?? 0.0,
+                        totalPages: Double(totalPageOfBook) ?? 0.0,
+                        status: readingStatus
+                    )
+                    bookTitle = ""
+                    bookAuthor = ""
+                    currentPageOfBook = ""
+                    totalPageOfBook = ""
+                    readingStatus = .reading
+                }
+                .withDefaultButton()
+                
+                Button("수정하기") {
+                    vm.updateRecords(title: bookTitle, newStatus: readingStatus)
+                    bookTitle = ""
+                    bookAuthor = ""
+                    currentPageOfBook = ""
+                    totalPageOfBook = ""
+                    readingStatus = .reading
+                }
+                .withDefaultButton()
+                
+                Divider()
+                
+                List {
+                    ForEach(vm.bookDataWithProgress, id: \.id) { bookData in
+                        Section {
+                            //content
+                            ForEach(bookData.bookRecords, id: \.self) { book in
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(book.title ?? "미상")
+                                    Text(book.author ?? "미상")
+                                    switch bookData.status {
+                                    case .reading:
+                                        ProgressView(
+                                            "\(book.currentPage)/\(book.totalPage)",
+                                            value: bookData.booksProgress.first(where: { $0.book == book })?.progress ?? 0.0)
+                                    case .completed:
+                                        Text("✓ 완독")
+                                    case .wishlist:
+                                        Text("⭐️")
+                                    }
+                                } //:VSTACK
+                            } //:LOOP
+                        } header: {
+                            switch bookData.status  {
+                            case .reading:
+                                Text("📖 읽는 중 (\(bookData.bookRecords.count))")
+                            case .completed:
+                                Text("✅ 완독 (\(bookData.bookRecords.count))")
+                            case .wishlist:
+                                Text("⭐️ 읽고 싶음 (\(bookData.bookRecords.count))")
+                            }
+                        }//:SECTION
+                    } //:LOOP
+                } //:LIST
+            } //:VSTACK
+            .navigationTitle("독서 기록")
+            .padding(.horizontal, 20)
+        } //:NAVIGATION
+    }//: body
+}
+
+#Preview {
+    BookReadingRecords()
+}

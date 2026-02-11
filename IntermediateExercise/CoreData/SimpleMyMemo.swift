@@ -95,12 +95,13 @@ struct DefaultTextField: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .font(.headline)
+            .font(.title3)
             .padding(.leading)
             .frame(maxWidth: .infinity)
-            .frame(height: 60)
+            .frame(height: 40)
             .background(Color.gray.opacity(0.2))
             .clipShape(RoundedRectangle(cornerRadius: 10))
+            .border(.background, width: 1)
             .padding(.horizontal)
     }
 }
@@ -113,9 +114,9 @@ struct DefaultButtonModifier: ViewModifier {
     // ViewModifier 의 안에서 body를 넣어줘야 하는데 일반적인 body가 아니라 some View를 리턴하는 함수 형태의 body가 필요하다.
     func body(content: Content) -> some View {
         content
-            .font(.title)
+            .font(.title3)
             .foregroundStyle(.white)
-            .frame(height: 60)
+            .frame(height: 40)
             .frame(maxWidth: .infinity)
             .background(backgroundColor)
             .clipShape(RoundedRectangle(cornerRadius: 10))
