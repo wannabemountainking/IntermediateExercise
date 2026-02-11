@@ -12,18 +12,32 @@ import CoreData
 
 class ExpenseHistoryViewModel: ObservableObject {
     
+    struct CategoryData: Identifiable {
+        let id = UUID()
+        let categoryName: String
+        let expenses: [Expense]
+        let subtotal: Double
+    }
+    
     let container: NSPersistentContainer
     
     @Published var selectedExpense: [Expense] = []
-    @Published var totalExpense: Double = 0
-    @Published var categoryExpense: [String: Double] = [
-        "식비" : 0, "교통비": 0, "쇼핑": 0
-    ]
-    @Published var expensesDetails: [String: [(name: String, price: Double)]] = [
-        "식비" : [(name: "", price: 0.0)],
-        "교통비": [(name: "", price: 0.0)],
-        "쇼핑": [(name: "", price: 0.0)]
-    ]
+    
+    var totalExpense: Double {
+        selectedExpense.map { $0.amount }.reduce(0, +)
+    }
+    
+    var categoriesWithSubtotal: [CategoryData] {
+        let grouped = Dictionary(grouping: selectedExpense) { $0.category ?? "미분류" }
+        
+        return grouped
+            .map { CategoryData(
+                categoryName: $0.key,
+                expenses: $0.value.sorted(by: { $0.date ?? Date() < $1.date ?? Date() }),
+                subtotal: $0.value.map { $0.amount }.reduce(0.0, +)
+            ) }
+            .sorted(by: { $0.categoryName < $1.categoryName })
+    }
     
     init() {
         container = NSPersistentContainer(name: "ExpenseRecord")
@@ -53,7 +67,6 @@ class ExpenseHistoryViewModel: ObservableObject {
         do {
             try container.viewContext.save()
             fetchExpense()
-            runExpenses()
         } catch {
             print("Saving Error: \(error)")
         }
@@ -70,32 +83,10 @@ class ExpenseHistoryViewModel: ObservableObject {
         saveExpense()
     }
     
-    func deleteExpense(offsets: IndexSet) {
-        offsets.map { selectedExpense[$0] }.forEach(container.viewContext.delete)
+    func deleteExpense(_ expense: Expense) {
+        container.viewContext.delete(expense)
         saveExpense()
     }
-    
-    // MARK: - Expense Function
-    
-    func runExpenses() {
-        // 1. expensesDetails
-        // 2. categoryExpense
-        // 3. totalExpense
-        expensesDetails = selectedExpense
-            .reduce(
-                into: [:],
-                {
-                    $0[$1.category ?? "분류기준추가요망", default: [(name: String, price: Double)]()]
-                        .append((name: $1.memo ?? "미분류", price: $1.amount))
-                }
-            )
-        print(expensesDetails)
-        categoryExpense = expensesDetails.mapValues { $0.map { $0.price }.reduce(0, +) }
-        print(categoryExpense)
-        totalExpense = categoryExpense.map { $1 }.reduce(0, +)
-        print(totalExpense)
-    }
-    
 }
 
 struct ExpenditureHistory: View {
@@ -144,25 +135,36 @@ struct ExpenditureHistory: View {
                 
                 Divider()
                 
-                Text("📊 총 지출: \(vm.totalExpense.formatted(.number.precision(.fractionLength(0))))원")
+                Text("📊 총 지출: \(vm.totalExpense, specifier: "%.0f")원")
                 
-                ForEach(vm.categoryExpense.sorted(by: { $0.key < $1.key }), id: \.key) { category, price in
-                    HStack {
-                        Text("[\(category)]")
-                        Spacer()
-                        Text("\(vm.categoryExpense[category, default: 0.0], specifier: "%.0f")원")
-                    }
-                    .frame(width: 300)
-                    
-                    ForEach(vm.expensesDetails[category, default: [(name: String, price: Double)]()].sorted(by: { $0.name < $1.name }), id: \.price) { name, individualPrice in
-                        HStack {
-                            Text(name)
-                            Spacer()
-                            Text("- \(individualPrice, specifier: "%.0f")원")
+                List {
+                    ForEach(vm.categoriesWithSubtotal, id: \.id) { categoryData in
+                        Section {
+                            //content
+                            ForEach(categoryData.expenses, id: \.id) { expense in
+                                HStack {
+                                    Text(expense.memo ?? "미분류")
+                                    Spacer()
+                                    Text("- \(expense.amount, specifier: "%.0f")원")
+                                }
+                                .frame(width: 300)
+                            }
+                            .onDelete { offsets in
+                                offsets.map { categoryData.expenses[$0] }.forEach(vm.deleteExpense)
+                            }
+                        } header: {
+                            HStack {
+                                Text("[\(categoryData.categoryName)]")
+                                Spacer()
+                                Text("\(categoryData.subtotal, specifier: "%.0f")원")
+                            }
+                            .frame(width: 300)
                         }
-                        .frame(width: 300)
+
                     }
+
                 }
+                
                 Spacer()
             } //:VSTACK
             .font(.title2)
