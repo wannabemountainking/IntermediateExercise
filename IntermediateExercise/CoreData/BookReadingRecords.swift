@@ -104,7 +104,7 @@ class BookRecordsViewModel: ObservableObject {
     // MARK: - Create, update, delete
     // creating
     func addBookRecords(title: String, author: String, currentPage: Double, totalPages: Double, status: Status) {
-        
+
         print("addBookRecords 호출됨")
         print("selectedBooks count: \(selectedBooks.count)")
         
@@ -125,17 +125,23 @@ class BookRecordsViewModel: ObservableObject {
     }
     
     // deleting
-    func deleteRecords(offsets: IndexSet) {
-        offsets
-            .map { selectedBooks[$0] }
-            .forEach { container.viewContext.delete($0) }
+    func deleteRecords(book: Book) {
+        guard let index = selectedBooks.firstIndex(where: { $0.id == book.id }) else {return}
+        let bookThatWillBeDeleted = selectedBooks[index]
+        container.viewContext.delete(bookThatWillBeDeleted)
         saveRecords()
     }
     
     // state Updating{
-    func updateRecords(title: String, newStatus: Status) {
-        guard let index = selectedBooks.firstIndex(where: { $0.title == title }) else {return}
+    func updateRecords(bookBefore: Book?, title: String?, author: String?, currentPage: Int?, newStatus: Status) {
+        guard let bookDisplayed = bookBefore,
+              let index = selectedBooks.firstIndex(where: { $0.id == bookDisplayed.id }) else {return}
+        print(selectedBooks[index])
+        selectedBooks[index].title = title
+        selectedBooks[index].currentPage = Int16(currentPage ?? 0)
+        selectedBooks[index].author = author
         selectedBooks[index].status = newStatus.rawValue
+        print(selectedBooks[index])
         saveRecords()
     }
 }
@@ -219,33 +225,36 @@ struct BookReadingRecords: View {
                     .padding(10)
                 }
                 
-                Button("추가하기") {
-                    // action addBook
-                    
-                    vm.addBookRecords(
-                        title: bookTitle,
-                        author: bookAuthor,
-                        currentPage: Double(currentPageOfBook) ?? 0.0,
-                        totalPages: Double(totalPageOfBook) ?? 0.0,
-                        status: readingStatus
-                    )
-                    bookTitle = ""
-                    bookAuthor = ""
-                    currentPageOfBook = ""
-                    totalPageOfBook = ""
-                    readingStatus = .reading
+                if selectedBook == nil {
+                    Button("추가하기") {
+                        // action addBook
+                        
+                        vm.addBookRecords(
+                            title: bookTitle,
+                            author: bookAuthor,
+                            currentPage: Double(currentPageOfBook) ?? 0.0,
+                            totalPages: Double(totalPageOfBook) ?? 0.0,
+                            status: readingStatus
+                        )
+                        bookTitle = ""
+                        bookAuthor = ""
+                        currentPageOfBook = ""
+                        totalPageOfBook = ""
+                        readingStatus = .reading
+                    }
+                    .withDefaultButton()
+                } else {
+                    Button("수정하기") {
+                        vm.updateRecords(bookBefore: selectedBook, title: bookTitle, author: bookAuthor, currentPage: Int(currentPageOfBook), newStatus: readingStatus)
+                        selectedBook = nil
+                        bookTitle = ""
+                        bookAuthor = ""
+                        currentPageOfBook = ""
+                        totalPageOfBook = ""
+                        readingStatus = .reading
+                    }
+                    .withDefaultButton()
                 }
-                .withDefaultButton()
-                
-                Button("수정하기") {
-                    vm.updateRecords(title: bookTitle, newStatus: readingStatus)
-                    bookTitle = ""
-                    bookAuthor = ""
-                    currentPageOfBook = ""
-                    totalPageOfBook = ""
-                    readingStatus = .reading
-                }
-                .withDefaultButton()
                 
                 Divider()
                 
@@ -254,23 +263,21 @@ struct BookReadingRecords: View {
                         Section {
                             //content
                             ForEach(bookData.bookRecords, id: \.self) { book in
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text(book.title ?? "미상")
-                                    Text(book.author ?? "미상")
-                                    switch bookData.status {
-                                    case .reading:
-                                        ProgressView(
-                                            "\(book.currentPage)/\(book.totalPage)",
-                                            value: bookData.booksProgress.first(where: { $0.book == book })?.progress ?? 0.0)
-                                    case .completed:
-                                        Text("✓ 완독")
-                                    case .wishlist:
-                                        Text("⭐️")
+                                BookRowView(book: book, bookData: bookData)
+                                    .onTapGesture(count: 1) {
+                                        selectedBook = book
+                                        bookTitle = book.title ?? ""
+                                        bookAuthor = book.author ?? ""
+                                        currentPageOfBook = "\(book.currentPage)"
+                                        totalPageOfBook = "\(book.totalPage)"
+                                        readingStatus = Status.stringToStatus(statusString: book.status ?? "읽는 중")
                                     }
-                                } //:VSTACK
-                                
                             } //:LOOP
-                            .onDelete { vm.deleteRecords(offsets: $0) }
+                            .onDelete { offsets in
+                                guard let index = offsets.first else {return}
+                                let soonToBeDeletedBook = bookData.bookRecords[index]
+                                vm.deleteRecords(book: soonToBeDeletedBook)
+                            }
                         } header: {
                             switch bookData.status  {
                             case .reading:
@@ -288,6 +295,31 @@ struct BookReadingRecords: View {
             .padding(.horizontal, 20)
         } //:NAVIGATION
     }//: body
+}
+
+struct BookRowView: View {
+    
+    let book: Book
+    let bookData: BookRecordsViewModel.BookData
+    
+    
+    var body: some View {
+        
+        VStack(alignment: .leading, spacing: 5) {
+            Text(book.title ?? "미상")
+            Text(book.author ?? "미상")
+            switch bookData.status {
+            case .reading:
+                ProgressView(
+                    "\(book.currentPage)/\(book.totalPage)",
+                    value: bookData.booksProgress.first(where: { $0.book == book })?.progress ?? 0.0)
+            case .completed:
+                Text("✓ 완독")
+            case .wishlist:
+                Text("⭐️")
+            }
+        } //:VSTACK
+    }
 }
 
 #Preview {
